@@ -1,0 +1,28 @@
+# .mailmap — canonical author mapping for git shortlog / git log / GitHub
+# Format: Canonical Name <canonical@email> <commit@email>
+# See: https://git-scm.com/docs/gitmailmap
+#
+# This maps commit emails to GitHub noreply addresses so that:
+# 1. `git shortlog -sn` shows deduplicated contributor counts
+# 2. GitHub's contributor graph can attribute commits correctly
+# 3. Contributors with personal/work emails get proper credit
+#
+# When adding entries: use the contributor's GitHub noreply email as canonical
+# so GitHub can link commits to their profile.
+
+# === Contributors — personal/work emails mapped to GitHub noreply ===
+# Format: Canonical Name <GH-noreply> <commit-email>
+
+# Verified via GH API email search
+
+# Verified via PR investigation / salvage PR bodies
+
+# Duplicate email mapping (same person, multiple emails)
+
+# Verified via git display name matching GH contributor username
+
+# Sophos Techne team
+info <info@sophostechne.com> <info@sophostechne.com>
+
+# GH contributor list verified
+
