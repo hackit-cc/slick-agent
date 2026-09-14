@@ -44,10 +44,26 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Trigger Vercel Deploy
-        run: curl -fsS --retry 3 --retry-delay 10 -X POST "${{ secrets.VERCEL_DEPLOY_HOOK }}"
+        env:
+          HOOK: ${{ secrets.VERCEL_DEPLOY_HOOK }}
+        # An unset secret expands to an empty string, and `curl -X POST ""`
+        # fails with "URL rejected: Malformed input to a URL function" (exit 3)
+        # rather than doing nothing — which is how this job failed the whole
+        # workflow on the v2026.9.13 release. This site deploys through Argo CD
+        # from hackit-config, not Vercel, so no hook is configured and the
+        # honest behaviour is to skip.
+        run: |
+          if [ -z "$HOOK" ]; then
+            echo "VERCEL_DEPLOY_HOOK not set — skipping (this site deploys via Argo CD)"
+            exit 0
+          fi
+          curl -fsS --retry 3 --retry-delay 10 -X POST "$HOOK"
 
   deploy-docs:
-    if: github.repository == 'Hackit/slick-agent'
+    # The repository is hackit-cc/slick-agent. This read 'Hackit/slick-agent',
+    # which matches nothing, so this job reported "skipped" on every run since
+    # the repo was created and the docs have never been built or published.
+    if: github.repository == 'hackit-cc/slick-agent'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     environment:
