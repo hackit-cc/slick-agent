@@ -165,16 +165,24 @@ export const githubTheme: DesktopTheme = {
  * blue. Forked from github.github-vscode-theme (Light Default / Dark Default),
  * with only the accent family re-seeded; every neutral is upstream's.
  *
- * Two seeds, one blue. `#0053FD` is the brand color and reads at 5.4:1 on the
- * light sidebar, but only 3.6:1 on the near-black dark one — so dark carries
- * `#4a84fe`, the same hue (263°) lifted to clear AA at 5.9:1. The soft
- * surfaces below are mixed from those seeds in OKLab, which is what keeps a
- * saturated blue from drifting violet on its way to white.
+ * The accent is neutral black. Light seeds `#0d1117` (17.8:1 on the light
+ * sidebar); dark cannot follow it down — black on the near-black sidebar is
+ * invisible — so dark inverts to `#e6edf3` at 17.4:1, with the dark text of
+ * `primaryForeground` riding on top. Both sit far above AA, which a chromatic
+ * accent could not do at this weight.
+ *
+ * A neutral seed also takes the soft surfaces out of OKLab's hands: with no
+ * hue to preserve there is no violet drift to correct for, so `secondary`,
+ * `accent` and `userBubble` are plain steps along the neutral ramp rather
+ * than mixes of a saturated seed.
+ *
+ * Terminal ANSI colors below stay chromatic on purpose — `blue` there means
+ * the ANSI slot, not the brand, and programs depend on it looking blue.
  */
 export const hackitTheme: DesktopTheme = {
   name: 'hackit',
   label: 'Hackit',
-  description: 'GitHub chrome, Hackit blue accent',
+  description: 'GitHub chrome, black accent',
   colors: {
     background: '#ffffff',
     foreground: '#1f2328',
@@ -184,23 +192,23 @@ export const hackitTheme: DesktopTheme = {
     mutedForeground: '#656d76',
     popover: '#ffffff',
     popoverForeground: '#1f2328',
-    primary: '#0053fd',
+    primary: '#0d1117',
     primaryForeground: '#ffffff',
-    secondary: '#deeaff',
+    secondary: '#e8eaed',
     secondaryForeground: '#1f2328',
-    accent: '#e3edff',
+    accent: '#eef0f2',
     accentForeground: '#1f2328',
     border: '#d0d7de',
     input: '#ffffff',
-    ring: '#0053fd',
-    midground: '#0053fd',
+    ring: '#0d1117',
+    midground: '#0d1117',
     midgroundForeground: '#ffffff',
-    composerRing: '#0053fd',
+    composerRing: '#0d1117',
     destructive: '#cf222e',
     destructiveForeground: '#ffffff',
     sidebarBackground: '#f6f8fa',
     sidebarBorder: '#d0d7de',
-    userBubble: '#dae7fd',
+    userBubble: '#e6e8ea',
     userBubbleBorder: '#d0d7de'
   },
   darkColors: {
@@ -212,29 +220,37 @@ export const hackitTheme: DesktopTheme = {
     mutedForeground: '#7d8590',
     popover: '#161b22',
     popoverForeground: '#e6edf3',
-    primary: '#4a84fe',
+    primary: '#e6edf3',
     primaryForeground: '#161616',
-    secondary: '#1d2e4f',
+    secondary: '#272b31',
     secondaryForeground: '#e6edf3',
-    accent: '#17243a',
+    accent: '#1c2128',
     accentForeground: '#e6edf3',
     border: '#30363d',
     input: '#0d1117',
-    ring: '#4a84fe',
-    midground: '#4a84fe',
+    ring: '#e6edf3',
+    midground: '#e6edf3',
     midgroundForeground: '#161616',
-    composerRing: '#4a84fe',
+    composerRing: '#e6edf3',
     destructive: '#f85149',
     destructiveForeground: '#ffffff',
     sidebarBackground: '#010409',
     sidebarBorder: '#30363d',
-    userBubble: '#07162c',
+    userBubble: '#161a1f',
     userBubbleBorder: '#30363d'
   },
+  // Montserrat + Courier Prime, matching slick-agent.hackit.cc — the site sets
+  // `--font-sans:"Montserrat",system-ui,…` and keeps Courier Prime on
+  // `--font-mono`, and this loads the same Google Fonts URL at the same
+  // weights. Montserrat is PREPENDED to the system stack rather than replacing
+  // it: the desktop needs the Segoe WPC / SF Pro entries the web stack has no
+  // reason to carry, and SYSTEM_SANS already ends in EMOJI_FALLBACK, which
+  // every font stack must (#40364 — emoji render as tofu otherwise).
   typography: {
-    fontSans: SYSTEM_SANS,
+    fontSans: `Montserrat, ${SYSTEM_SANS}`,
     fontMono: SYSTEM_MONO,
-    fontUrl: 'https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&display=swap'
+    fontUrl:
+      'https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Courier+Prime:wght@400;700&display=swap'
   },
   terminal: {
     foreground: '#1f2328',
