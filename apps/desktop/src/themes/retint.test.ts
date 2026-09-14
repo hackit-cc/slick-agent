@@ -14,11 +14,13 @@ const HACKIT_BLUE = '#0053FD'
 
 describe('themeHue', () => {
   it('reads the accent hue that ships', () => {
-    // Hackit blue. Both palettes sit at this hue — light seeds `#0053fd` and dark
-    // `#4a84fe`, the same blue at two lightnesses, which is what lets one pick
-    // serve both appearances.
-    expect(themeHue(hackitTheme)).toBe(263)
-    expect(Math.round(hexToOklch(hackitTheme.darkColors!.primary)!.h)).toBe(263)
+    // The accent is neutral, so its hue is whatever residue the near-black and
+    // near-white carry rather than a brand value — 258 and 244 are a few
+    // hundredths of chroma talking. Pin the chroma instead: that is the
+    // property the palette actually commits to.
+    expect(hexToOklch(hackitTheme.colors.primary)!.c).toBeLessThan(0.03)
+    expect(hexToOklch(hackitTheme.darkColors!.primary)!.c).toBeLessThan(0.03)
+    expect(themeHue(hackitTheme)).toBe(258)
   })
 
   it('reads the upstream GitHub green from the unforked theme', () => {
@@ -30,13 +32,13 @@ describe('themeHue', () => {
 })
 
 // The two seeds are the whole point of the fork, and both are load-bearing:
-// `#0053FD` is the brand color and passes on the light sidebar, but only 3.6:1
-// on the near-black dark one — so dark carries a lifted twin rather than the
-// literal brand hex. Anything that re-derives these must keep both legible.
+// the accent is black, which passes on the light sidebar at 17.8:1 but would be
+// invisible on the near-black dark one — so dark inverts to near-white rather
+// than darkening further. Anything that re-derives these must keep both legible.
 describe('the shipped hackit accents', () => {
   const cases = [
-    { appearance: 'light', colors: hackitTheme.colors, seed: '#0053fd' },
-    { appearance: 'dark', colors: hackitTheme.darkColors!, seed: '#4a84fe' }
+    { appearance: 'light', colors: hackitTheme.colors, seed: '#0d1117' },
+    { appearance: 'dark', colors: hackitTheme.darkColors!, seed: '#e6edf3' }
   ] as const
 
   it.each(cases)('$appearance seeds every accent slot from $seed', ({ colors, seed }) => {
@@ -53,11 +55,15 @@ describe('the shipped hackit accents', () => {
     expect(contrastRatio(seed, colors.primaryForeground)).toBeGreaterThanOrEqual(4.5)
   })
 
-  it('is one blue at two lightnesses, not two blues', () => {
+  it('is one neutral inverted across the two modes, not two tints', () => {
     const light = hexToOklch(hackitTheme.colors.primary)!
     const dark = hexToOklch(hackitTheme.darkColors!.primary)!
 
-    expect(Math.abs(light.h - dark.h)).toBeLessThan(2)
+    // A neutral accent cannot hold a hue across modes the way the old blue did
+    // — it has none to hold. What it must hold is the absence of one, at both
+    // ends, so the accent never reads as a tint.
+    expect(light.c).toBeLessThan(0.03)
+    expect(dark.c).toBeLessThan(0.03)
     expect(dark.l).toBeGreaterThan(light.l)
   })
 

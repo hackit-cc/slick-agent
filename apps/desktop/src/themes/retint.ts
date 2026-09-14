@@ -42,6 +42,14 @@ import type { DesktopTheme, DesktopThemeColors } from './types'
 const ACCENT_MIN_CONTRAST = 4.5
 
 /**
+ * OKLCH chroma below which a color counts as neutral for carry purposes.
+ * `hackit`'s black/near-white pair sits at 0.014 / 0.011; the chromatic
+ * presets seed from 0.10 (GitHub green) up to 0.26 (the former Hackit blue),
+ * so the gap either side of this line is wide.
+ */
+const NEUTRAL_CHROMA = 0.03
+
+/**
  * How far a slot's hue may sit from the primary and still count as the same
  * accent family. Wide enough for a theme that shades its ring (midnight runs
  * 286° against a 293° primary), narrow enough that a second, deliberately
@@ -140,6 +148,14 @@ function seedFor(colors: DesktopThemeColors, seed: string): string {
  * Falling back to a bare AA clamp (what this did first) technically passed
  * contrast but ignored the author's intent — GitHub green came back as
  * `#368548` instead of `#4f9e5e`, a visibly duller dark accent.
+ *
+ * That fallback IS right for one case: a theme whose accent family is neutral.
+ * `hackit` seeds black in light and near-white in dark, so its "offset" is not
+ * a lift but an inversion — L 0.176 → 0.943, a delta of 0.77. Carrying that to
+ * a chromatic pick pushes L past 1, where the clamp flattens chroma to 0 and
+ * every picked color arrives in dark mode as pure white. A neutral author had
+ * no hue intent to honor in the first place, so there is nothing to carry and
+ * the contrast floor is the whole answer.
  */
 function carryToDark(theme: DesktopTheme, seed: string): string {
   const light = hexToOklch(theme.colors.primary)
@@ -147,6 +163,13 @@ function carryToDark(theme: DesktopTheme, seed: string): string {
   const picked = hexToOklch(seed)
 
   if (!light || !dark || !picked) {
+    return seed
+  }
+
+  // Below this, a color carries no usable hue — the offset between the two
+  // ends is an inversion rather than the authored lift this function exists
+  // to reapply. Every chromatic preset sits an order of magnitude above it.
+  if (light.c < NEUTRAL_CHROMA && dark.c < NEUTRAL_CHROMA) {
     return seed
   }
 
