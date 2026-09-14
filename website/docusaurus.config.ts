@@ -10,7 +10,7 @@ const config: Config = {
   url: 'https://slick-agent.hackit.cc',
   baseUrl: '/docs/',
 
-  organizationName: 'Hackit',
+  organizationName: 'hackit-cc',
   projectName: 'slick-agent',
 
   onBrokenLinks: 'warn',

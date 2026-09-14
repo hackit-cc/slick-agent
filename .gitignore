@@ -36,6 +36,12 @@ data/
 # `data/` pattern above would otherwise swallow it.
 !slick_cli/data/
 !slick_cli/data/plugin_index.json
+# Docs user-stories data — same `data/` problem, with teeth: the collage
+# component `import`s this file directly, so when the pattern swallowed it the
+# docs build failed outright with "Can't resolve @site/src/data/userStories.json".
+# Nothing generates it, so it has to be tracked.
+!website/src/data/
+!website/src/data/userStories.json
 .pytest_cache/
 test_durations.json
 .pytest-cache/
