@@ -1,0 +1,189 @@
+# .github/workflows/sync-install-scripts.yml
+name: Sync install scripts to website
+
+# scripts/install.ps1 and scripts/install.sh have three consumers:
+#
+#   1. apps/desktop/electron/bootstrap-runner.ts  — first-launch bootstrap
+#   2. apps/bootstrap-installer (Slick-Setup.exe) — src/install_script.rs
+#   3. https://slick-agent.hackit.cc/install.{ps1,sh} — the one-liners the
+#      marketing site tells people to pipe into their shell
+#
+# (1) and (2) both fetch
+#   https://raw.githubusercontent.com/hackit-cc/slick-agent/<ref>/scripts/<name>
+# so this repo is already the source of truth for them. (3) was a hand copy
+# living at slick-site/public/, and it drifted — in BOTH directions, which is
+# the part that made it dangerous rather than merely untidy:
+#
+#   * the website copy was AHEAD on real fixes — the correct hackit-cc clone
+#     URL, the Node >=24.11 gate that @babel/core 8.x's engines actually
+#     require, and run_locked_uv_sync(), which keeps `uv sync --locked` from
+#     falling through to the non-hash-verified PyPI tiers on every fresh
+#     install. None of that reached the desktop app or Slick-Setup.exe.
+#   * this repo was AHEAD on branding ("Hackit", not "HackIt").
+#
+# So neither copy could simply overwrite the other; they had to be reconciled
+# by hand once. This workflow exists so that never has to happen again: after
+# the reconciliation, scripts/ here is canonical and the website is derived.
+#
+# WHY A PULL REQUEST rather than a build-time `curl` in the site's Dockerfile:
+# fetching at image-build time would make the build non-hermetic (a raw.github
+# outage breaks the site build), unreviewable (the installer everyone pipes
+# into a shell would change with no diff anyone approved), and unpinnable. A PR
+# keeps the site build hermetic and puts a human diff in front of a script that
+# runs as `iex (irm ...)` on other people's machines.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/install.ps1'
+      - 'scripts/install.sh'
+      - '.github/workflows/sync-install-scripts.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sync-install-scripts
+  cancel-in-progress: false
+
+env:
+  SITE_REPO: hackit-cc/slick-site
+  SYNC_BRANCH: sync/install-scripts
+
+jobs:
+  sync:
+    name: Open sync PR against slick-site
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout slick-agent
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: agent
+
+      # Scoped to the website repo only. The default GITHUB_TOKEN cannot write
+      # to another repository, so without App credentials there is nothing to
+      # push with — the job says so and stops rather than failing obscurely on
+      # the first git push.
+      - name: Get GitHub App token
+        id: app-token
+        uses: ./agent/.github/actions/get-app-token
+        with:
+          client-id: ${{ vars.APP_CLIENT_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          owner: hackit-cc
+          repositories: slick-site
+
+      - name: Check the token can reach the site repo
+        id: gate
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          if gh repo view "$SITE_REPO" >/dev/null 2>&1; then
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::No write-capable token for $SITE_REPO (APP_CLIENT_ID / APP_PRIVATE_KEY missing or not installed there) — skipping the sync."
+          fi
+
+      - name: Checkout slick-site
+        if: steps.gate.outputs.ok == 'true'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: hackit-cc/slick-site
+          token: ${{ steps.app-token.outputs.token }}
+          path: site
+          fetch-depth: 0
+
+      # Copied byte-for-byte with LF endings. The runner is Linux and
+      # .gitattributes marks both files `text`, so the checkout is already LF;
+      # the explicit strip is belt-and-braces against a future attribute change
+      # silently shipping a CRLF install.sh, which `curl | bash` cannot run.
+      - name: Copy canonical scripts
+        if: steps.gate.outputs.ok == 'true'
+        id: copy
+        run: |
+          set -euo pipefail
+          changed=0
+          for f in install.ps1 install.sh; do
+            src="agent/scripts/$f"
+            dst="site/public/$f"
+            tr -d '\r' < "$src" > "$dst.new"
+            if [ -f "$dst" ] && cmp -s "$dst" "$dst.new"; then
+              rm "$dst.new"
+              echo "$f: already in sync"
+            else
+              mv "$dst.new" "$dst"
+              changed=1
+              echo "$f: updated"
+            fi
+          done
+          echo "changed=$changed" >> "$GITHUB_OUTPUT"
+
+      - name: Push branch and open PR
+        if: steps.gate.outputs.ok == 'true' && steps.copy.outputs.changed == '1'
+        working-directory: site
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          SHA: ${{ github.sha }}
+          # Same reason as PR_BODY below: written inline, every continuation
+          # line would carry the block scalar's indentation into the commit.
+          COMMIT_BODY: |
+            Mirrors scripts/install.ps1 and scripts/install.sh from
+            hackit-cc/slick-agent at ${{ github.sha }}. That repo is the source
+            of truth: the desktop app and Slick-Setup.exe both fetch these files
+            from raw.githubusercontent.com, so the website must not diverge from
+            them.
+
+            Opened automatically by .github/workflows/sync-install-scripts.yml.
+          # Kept out of the script body: a heredoc inside a YAML block scalar
+          # has to be indented to stay inside the scalar, and a quoted heredoc
+          # preserves that indentation in the output.
+          PR_BODY: |
+            The website serves `install.ps1` / `install.sh` at
+            https://slick-agent.hackit.cc/, but the canonical copies live in
+            `hackit-cc/slick-agent` under `scripts/` — that is where the desktop
+            app's first-launch bootstrap and `Slick-Setup.exe` fetch them from,
+            via `raw.githubusercontent.com`.
+
+            This PR mirrors the canonical copies into `public/`. It is generated
+            by `.github/workflows/sync-install-scripts.yml` in slick-agent.
+
+            **Review this like any other installer change.** These files run as
+            `iex (irm ...)` / `curl | bash` on other people's machines.
+
+            Note that merging this PR does not deploy it: the site ships as a
+            container image pinned **by digest** in
+            `hackit-config/slick-site/kubernetes/site.yaml`, and Argo CD syncs on
+            that manifest changing. After merge, let `publish-image` build, then
+            pin the digest it reports.
+        run: |
+          set -euo pipefail
+          git config user.name  "slick-bot"
+          git config user.email "noreply@hackit.cc"
+
+          git checkout -B "$SYNC_BRANCH"
+          git add public/install.ps1 public/install.sh
+          git commit \
+            -m "Sync install scripts from slick-agent@${SHA:0:7}" \
+            -m "$COMMIT_BODY"
+
+          # Force-push: this is a single rolling branch, so a superseded sync
+          # is replaced rather than stacked. Nothing but this job writes it.
+          git push --force origin "$SYNC_BRANCH"
+
+          if gh pr view "$SYNC_BRANCH" --json number >/dev/null 2>&1; then
+            echo "existing PR updated by the force-push"
+          else
+            gh pr create \
+              --repo "$SITE_REPO" \
+              --head "$SYNC_BRANCH" \
+              --title "Sync install scripts from slick-agent" \
+              --body "$PR_BODY"
+          fi
+
+      - name: Report
+        if: steps.gate.outputs.ok == 'true' && steps.copy.outputs.changed == '0'
+        run: echo "Website copies already match this repo — nothing to do."
