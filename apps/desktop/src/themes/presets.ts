@@ -241,16 +241,21 @@ export const hackitTheme: DesktopTheme = {
   },
   // Montserrat + Courier Prime, matching slick-agent.hackit.cc — the site sets
   // `--font-sans:"Montserrat",system-ui,…` and keeps Courier Prime on
-  // `--font-mono`, and this loads the same Google Fonts URL at the same
-  // weights. Montserrat is PREPENDED to the system stack rather than replacing
-  // it: the desktop needs the Segoe WPC / SF Pro entries the web stack has no
-  // reason to carry, and SYSTEM_SANS already ends in EMOJI_FALLBACK, which
-  // every font stack must (#40364 — emoji render as tofu otherwise).
+  // `--font-mono`. Montserrat is PREPENDED to the system stack rather than
+  // replacing it: the desktop needs the Segoe WPC / SF Pro entries the web
+  // stack has no reason to carry, and SYSTEM_SANS already ends in
+  // EMOJI_FALLBACK, which every font stack must (#40364 — emoji render as tofu
+  // otherwise).
+  //
+  // Montserrat is NOT in fontUrl: it ships in the app, declared @font-face in
+  // styles.css. `fontUrl` is fetched from Google Fonts at theme-apply time,
+  // which is both a network dependency for rendering the app's own chrome and
+  // too late for the first frame. Courier Prime stays remote only because it
+  // already was — moving it is a separate change.
   typography: {
     fontSans: `Montserrat, ${SYSTEM_SANS}`,
     fontMono: SYSTEM_MONO,
-    fontUrl:
-      'https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Courier+Prime:wght@400;700&display=swap'
+    fontUrl: 'https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&display=swap'
   },
   terminal: {
     foreground: '#1f2328',
