@@ -269,6 +269,29 @@ jobs:
           path: dist
           merge-multiple: true
 
+      # Stable, version-less aliases for the marketing site. electron-builder
+      # stamps the version into every artifact name, so a link of the form
+      # /releases/latest/download/<name> cannot be written against the real
+      # names without editing it on each release — and it 404s silently in the
+      # meantime, which is exactly what happened to the Windows button on
+      # slick-agent.hackit.cc. Copies, not renames: the versioned names stay,
+      # because latest*.yml references them for auto-update.
+      - name: Add version-less download aliases
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          made=0
+          for f in dist/Slick-*-mac-arm64.dmg; do
+            case "$f" in *-mac-arm64.dmg) ;; *) continue ;; esac
+            cp "$f" dist/Slick-mac-arm64.dmg; made=$((made+1))
+          done
+          if [ "$made" -eq 0 ]; then
+            echo "::error::no mac-arm64 dmg found to alias; site download link would 404"
+            ls -la dist
+            exit 1
+          fi
+          ls -la dist/Slick-mac-arm64.dmg
+
       - name: Upload to release
         env:
           GH_TOKEN: ${{ github.token }}

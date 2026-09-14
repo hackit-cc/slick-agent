@@ -231,6 +231,25 @@ jobs:
           path: dist
           merge-multiple: true
 
+      # Stable, version-less alias for the marketing site's "Download for
+      # Windows" button. See the matching step in release-desktop.yml: the
+      # collect step above stamps VERSION into the name, so the site cannot
+      # link to it directly without an edit per release. A copy, not a rename.
+      - name: Add version-less download alias
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          made=0
+          for f in dist/Slick-Setup-*-x64.exe; do
+            cp "$f" dist/Slick-Setup-win-x64.exe; made=$((made+1))
+          done
+          if [ "$made" -eq 0 ]; then
+            echo "::error::no Slick-Setup exe found to alias; site download link would 404"
+            ls -la dist
+            exit 1
+          fi
+          ls -la dist/Slick-Setup-win-x64.exe
+
       - name: Upload to release
         env:
           GH_TOKEN: ${{ github.token }}
