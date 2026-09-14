@@ -383,7 +383,7 @@ $script:ResolvedPathReport = @{
 # Configuration
 # ============================================================================
 
-$RepoUrlSsh = "git@github.com:Hackit/slick-agent.git"
+$RepoUrlSsh = "git@github.com:hackit-cc/slick-agent.git"
 $RepoUrlHttps = "https://github.com/hackit-cc/slick-agent.git"
 $PythonVersion = "3.11"
 # Minor versions the installer accepts when the requested $PythonVersion isn't
@@ -462,7 +462,7 @@ function Write-Banner {
     Write-Host "+---------------------------------------------------------+" -ForegroundColor Magenta
     Write-Host "|             * Slick Agent Installer                    |" -ForegroundColor Magenta
     Write-Host "+---------------------------------------------------------+" -ForegroundColor Magenta
-    Write-Host "|  An open source AI agent by Hackit.              |" -ForegroundColor Magenta
+    Write-Host "|         An open source AI agent by Hackit.             |" -ForegroundColor Magenta
     Write-Host "+---------------------------------------------------------+" -ForegroundColor Magenta
     Write-Host ""
 }
@@ -1643,8 +1643,9 @@ function Set-GitBashEnvVar {
     Write-Info "If needed, set SLICK_GIT_BASH_PATH manually to your bash.exe path."
 }
 
-# The dependency tree supports Node 22.22+, 24, and 26+. nanoid 6 excludes
-# Node 23 and 25 while its >=26 arm accepts later releases, so accepting 23/25
+# The dependency tree supports Node 22.22+, 24.11+, and 26+. nanoid 6 excludes
+# Node 23 and 25 while its >=26 arm accepts later releases, and @babel/* 8.x
+# requires ^22.18.0 || >=24.11.0 -- so accepting 23/25 or an early Node 24
 # only defers the failure to `npm ci` under engine-strict. Keep this in sync
 # with the root package.json.
 function Test-NodeVersionOk {
@@ -1656,7 +1657,8 @@ function Test-NodeVersionOk {
         return $false
     }
     if ($v.Major -eq 22) { return ($v.Minor -ge 22) }
-    return (($v.Major -eq 24) -or ($v.Major -ge 26))
+    if ($v.Major -eq 24) { return ($v.Minor -ge 11) }
+    return ($v.Major -ge 26)
 }
 
 # Accept a system Node only when its companion npm also satisfies the same
@@ -1669,7 +1671,7 @@ function Test-SystemNodeReady {
     if (Test-NodeVersionOk $version) {
         Ensure-NodeExeOnPath | Out-Null
     } else {
-        Write-Warn "Node.js $version is unsupported (Slick requires Node 22.22+, 24, or 26+)"
+        Write-Warn "Node.js $version is unsupported (Slick requires Node 22.22+, 24.11+, or 26+)"
         return $false
     }
 
