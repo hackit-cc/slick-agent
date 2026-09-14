@@ -13,6 +13,20 @@
  * a stamp failure must never fail an otherwise-good build (worst case is the
  * stock icon, not a broken app), so we log and resolve rather than throw.
  *
+ * SIGNED BUILDS STAND DOWN
+ * -----------------------
+ * rcedit rewrites PE resources. Doing that to an exe that has already been
+ * Authenticode-signed silently invalidates the signature — the file still
+ * runs, but the trust chain it was signed for is gone, which is worse than
+ * shipping unsigned because it looks signed until a verifier checks it.
+ *
+ * When a build actually has a certificate it sets SLICK_WIN_EB_EDITS_EXE=1 and
+ * flips build.win.signAndEditExecutable back to true, which makes
+ * electron-builder perform BOTH the rcedit pass and the signtool pass itself,
+ * in that order. That covers the same icon/version branding this hook exists
+ * to restore, so the hook has nothing left to add and must not touch the exe
+ * afterwards. See set-exe-identity.mjs for why the default is false.
+ *
  * electron-builder passes a context with:
  *   - electronPlatformName: 'win32' | 'darwin' | 'linux'
  *   - appOutDir:            the unpacked app directory for this target
@@ -25,6 +39,13 @@ import { stampExeIdentity } from './set-exe-identity.mjs'
 
 export default async function afterPack(context) {
   if (context.electronPlatformName !== 'win32') {
+    return
+  }
+
+  // electron-builder owns the icon/version edit AND the signature on this
+  // build; re-editing here would strip the signature it just applied.
+  if (process.env.SLICK_WIN_EB_EDITS_EXE === '1') {
+    console.log('[after-pack] signed build — electron-builder stamped the exe, skipping rcedit')
     return
   }
 
